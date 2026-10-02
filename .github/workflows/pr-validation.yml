@@ -20,6 +20,7 @@ on:
 permissions:
   contents: read
   actions: read
+  packages: write
 
 jobs:  
   test:
@@ -40,3 +41,15 @@ jobs:
         run: dotnet build eShop.Web.slnf
       - name: Test
         run: dotnet test --solution eShop.Web.slnf --no-build --no-progress --output detailed
+      # The SDK's own container publish of WebApp to GHCR, not declared:
+      # the analysis is to find the push on its own.
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Publish WebApp image
+        if: github.event_name != 'pull_request'
+        run: >-
+          dotnet publish src/WebApp/WebApp.csproj -c Release -t:PublishContainer
+          -p:ContainerRegistry=ghcr.io
+          -p:ContainerRepository=bitbison-labs/eshop-webapp
+          -p:ContainerImageTag=${{ github.sha }}
